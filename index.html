@@ -78,10 +78,32 @@
   <script>
     // === PWA: Service Worker Registrierung ===
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(console.error);
-      });
-    }
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        // Wenn eine neue SW installiert ist und wartet → sofort aktivieren
+        function readyToActivate(sw) {
+          if (sw && sw.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              sw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+        }
+        if (reg.waiting) readyToActivate(reg.waiting);
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          sw && sw.addEventListener('statechange', () => readyToActivate(sw));
+        });
+
+        // Einmaliges Reload, wenn der neue SW übernimmt
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+      }).catch(console.error);
+    });
+  }
 
     // === Maßstab: 10 px = 0.1 m → 1 px = 0.01 m ===
     const SCALE = 0.01; // m pro Pixel
@@ -166,5 +188,6 @@
   </script>
 </body>
 </html>
+
 
 
