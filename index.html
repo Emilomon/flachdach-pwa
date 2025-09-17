@@ -158,7 +158,7 @@
       const areaEG = EG_W_m * EG_L_m;
       const areaOG = OG_W_m * OG_L_m;
       const pct = areaEG > 0 ? (areaOG/areaEG)*100 : 0;
-      infoArea.textContent = `2. OG Fläche: ${areaOG.toFixed(2)} m² (${pct.toFixed(1)}%) – EG: ${areaEG.toFixed(2)} m²`;
+      infoArea.textContent = `DG-Fläche: ${areaOG.toFixed(2)} m² (${pct.toFixed(1)}%) – EG-Fläche: ${areaEG.toFixed(2)} m²`;
       fullLabel.style.display = (pct >= 75) ? 'inline' : 'none';
 
       const margin = 100;
@@ -188,6 +188,7 @@
   </script>
 </body>
 </html>
+
 
 
 
