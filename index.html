@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Flachdach – Draufsicht (PWA)</title>
+
+  <!-- PWA Meta -->
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#131a33; --ink:#e8ecff; --muted:#a8b3d9;
+      --house:#1b2b57; --house-stroke:#8aa4ff;
+      --roof:#253a7a; --roof-stroke:#8aa4ff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; overflow:hidden}
+    body{background:var(--bg); color:var(--ink); font-family:system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif; display:flex; align-items:center; justify-content:center; height:100%}
+    .card{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.35); width:min(96vw,1280px); height:100vh; max-height:100vh; padding:18px; display:flex; flex-direction:column; gap:10px; overflow:hidden}
+    h1{margin:0 0 6px; font-size:clamp(18px,2.8vw,26px)}
+    p{margin:0 0 14px; color:var(--muted)}
+    .controls{display:flex; flex-direction:column; gap:12px; margin-bottom:12px}
+    .control-group{display:grid; grid-template-columns:auto 1fr auto; gap:8px 10px; align-items:center}
+    input[type=range]{width:100%; height:36px}
+    input[type=range]::-webkit-slider-thumb{width:28px;height:28px;border-radius:50%;background:#8aa4ff;border:none;margin-top:-10px}
+    input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:6px;background:#31407a}
+    .badge{background:#0f1630; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:6px 10px; font-variant-numeric:tabular-nums; font-size:16px}
+    .svg-wrap{flex:1 1 auto; min-height:0}
+    svg{width:100%; height:100%; background:#0f1630; border-radius:12px; display:block; touch-action:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Flachdach – Draufsicht (Grundriss)</h1>
+    <p>Hausbreite &amp; -länge einstellen. OG separat steuerbar &amp; per Drag verschiebbar. Ab 75% Fläche → „Vollgeschoss“.</p>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="egWidth">Hausbreite EG (m)</label>
+        <input id="egWidth" type="range" min="5" max="30" value="12" step="0.1" />
+        <span id="egWidthOut" class="badge">12.0 m</span>
+      </div>
+      <div class="control-group">
+        <label for="egLength">Hauslänge EG (m)</label>
+        <input id="egLength" type="range" min="5" max="60" value="18" step="0.1" />
+        <span id="egLengthOut" class="badge">18.0 m</span>
+      </div>
+      <div class="control-group">
+        <label for="ogWidth">OG-Breite (m)</label>
+        <input id="ogWidth" type="range" min="1" max="12" value="8" step="0.1" />
+        <span id="ogWidthOut" class="badge">8.0 m</span>
+      </div>
+      <div class="control-group">
+        <label for="ogLength">OG-Länge (m)</label>
+        <input id="ogLength" type="range" min="1" max="18" value="12" step="0.1" />
+        <span id="ogLengthOut" class="badge">12.0 m</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <span id="infoArea" class="badge">2. OG Fläche: 96.00 m² (44.4%) – EG: 216.00 m²</span>
+      </div>
+    </div>
+
+    <div class="svg-wrap">
+      <svg id="svgPlan" viewBox="0 0 2400 1600" aria-label="Haus – Draufsicht" preserveAspectRatio="xMidYMid meet">
+        <rect id="eg" fill="var(--house)" stroke="var(--house-stroke)" stroke-width="3"/>
+        <rect id="og" fill="var(--roof)" stroke="var(--roof-stroke)" stroke-width="3" opacity="0.95" cursor="grab"/>
+        <text id="fullLabel" fill="#ffffff" font-size="32" text-anchor="middle" dominant-baseline="middle" style="display:none; pointer-events:none; font-weight:700;">Vollgeschoss</text>
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    // === PWA: Service Worker Registrierung ===
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(console.error);
+      });
+    }
+
+    // === Maßstab: 10 px = 0.1 m → 1 px = 0.01 m ===
+    const SCALE = 0.01; // m pro Pixel
+    const $ = (id) => document.getElementById(id);
+    const egWInp = $("egWidth"), egWOut = $("egWidthOut");
+    const egLInp = $("egLength"), egLOut = $("egLengthOut");
+    const ogWInp = $("ogWidth"), ogWOut = $("ogWidthOut");
+    const ogLInp = $("ogLength"), ogLOut = $("ogLengthOut");
+    const infoArea = $("infoArea");
+    const svg = $("svgPlan"), eg = $("eg"), og = $("og"), fullLabel = $("fullLabel");
+
+    let EG_W_m = +egWInp.value;
+    let EG_L_m = +egLInp.value;
+    let OG_W_m = +ogWInp.value;
+    let OG_L_m = +ogLInp.value;
+    let OG_X_m = (EG_L_m - OG_L_m)/2;
+    let OG_Y_m = (EG_W_m - OG_W_m)/2;
+
+    let dragging = false; let dragDX=0, dragDY=0;
+
+    function clampOG(){
+      OG_X_m = Math.max(0, Math.min(OG_X_m, EG_L_m - OG_L_m));
+      OG_Y_m = Math.max(0, Math.min(OG_Y_m, EG_W_m - OG_W_m));
+    }
+    function setAttrs(el, o){ for (const k in o) el.setAttribute(k, o[k]); }
+    function m2px(m){ return m / SCALE; }
+
+    function updateLimits(){
+      ogWInp.max = Math.max(1, EG_W_m).toString();
+      ogLInp.max = Math.max(1, EG_L_m).toString();
+      OG_W_m = Math.min(OG_W_m, EG_W_m);
+      OG_L_m = Math.min(OG_L_m, EG_L_m);
+    }
+
+    function update(){
+      EG_W_m = +egWInp.value; egWOut.textContent = `${EG_W_m.toFixed(1)} m`;
+      const prevL = EG_L_m; EG_L_m = +egLInp.value; egLOut.textContent = `${EG_L_m.toFixed(1)} m`;
+      const deltaL = EG_L_m - prevL; if(OG_X_m + OG_L_m >= prevL - 0.001) OG_X_m += deltaL;
+      OG_W_m = +ogWInp.value; ogWOut.textContent = `${OG_W_m.toFixed(1)} m`;
+      OG_L_m = +ogLInp.value; ogLOut.textContent = `${OG_L_m.toFixed(1)} m`;
+
+      updateLimits(); clampOG();
+
+      const EG_W = m2px(EG_W_m), EG_L = m2px(EG_L_m);
+      const OG_W = m2px(OG_W_m), OG_L = m2px(OG_L_m);
+      const OG_X = m2px(OG_X_m), OG_Y = m2px(OG_Y_m);
+
+      setAttrs(eg, { x:200, y:120, width:EG_L, height:EG_W });
+      setAttrs(og, { x:200+OG_X, y:120+OG_Y, width:OG_L, height:OG_W });
+      setAttrs(fullLabel, { x:200+OG_X+OG_L/2, y:120+OG_Y+OG_W/2 });
+
+      const areaEG = EG_W_m * EG_L_m;
+      const areaOG = OG_W_m * OG_L_m;
+      const pct = areaEG > 0 ? (areaOG/areaEG)*100 : 0;
+      infoArea.textContent = `2. OG Fläche: ${areaOG.toFixed(2)} m² (${pct.toFixed(1)}%) – EG: ${areaEG.toFixed(2)} m²`;
+      fullLabel.style.display = (pct >= 75) ? 'inline' : 'none';
+
+      const margin = 100;
+      svg.setAttribute('viewBox', `${200-margin} ${120-margin} ${EG_L+margin*2} ${EG_W+margin*2}`);
+    }
+
+    function svgPoint(evt){
+      const pt = svg.createSVGPoint();
+      pt.x = evt.clientX; pt.y = evt.clientY;
+      return pt.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    og.addEventListener('pointerdown', (e)=>{
+      dragging=true; og.style.cursor='grabbing'; og.setPointerCapture(e.pointerId);
+      const p=svgPoint(e); const ogX=+og.getAttribute('x'); const ogY=+og.getAttribute('y');
+      dragDX=(p.x-ogX)*SCALE; dragDY=(p.y-ogY)*SCALE;
+    });
+    og.addEventListener('pointermove', (e)=>{
+      if(!dragging) return; const p=svgPoint(e);
+      OG_X_m=(p.x-200)*SCALE-dragDX; OG_Y_m=(p.y-120)*SCALE-dragDY;
+      clampOG(); requestAnimationFrame(update);
+    });
+    og.addEventListener('pointerup', (e)=>{ dragging=false; og.style.cursor='grab'; og.releasePointerCapture(e.pointerId); });
+
+    [egWInp,egLInp,ogWInp,ogLInp].forEach(inp=>inp.addEventListener('input',()=>{clampOG(); update();}));
+    update();
+  </script>
+</body>
+</html>
