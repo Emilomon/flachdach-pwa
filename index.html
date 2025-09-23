@@ -2,197 +2,216 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Flachdach-PWA</title>
-
-  <!-- PWA Meta -->
-  <meta name="theme-color" content="#0b1020" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flachdach – 2D</title>
   <style>
-    :root{
-      --bg:#0b1020; --panel:#131a33; --ink:#e8ecff; --muted:#a8b3d9;
-      --house:#1b2b57; --house-stroke:#8aa4ff;
-      --roof:#253a7a; --roof-stroke:#8aa4ff;
-    }
+    :root{--bg:#0b1020;--panel:#131a33;--ink:#e8ecff;--muted:#a8b3d9;--house:#1b2b57;--roof:#253a7a;--stroke:#8aa4ff}
     *{box-sizing:border-box}
-    html,body{height:100%; margin:0; overflow:hidden}
-    body{background:var(--bg); color:var(--ink); font-family:system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif; display:flex; align-items:center; justify-content:center; height:100%}
-    .card{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.35); width:min(96vw,1280px); height:100vh; max-height:100vh; padding:18px; display:flex; flex-direction:column; gap:10px; overflow:hidden}
-    h1{margin:0 0 6px; font-size:clamp(18px,2.8vw,26px)}
-    p{margin:0 0 14px; color:var(--muted)}
-    .controls{display:flex; flex-direction:column; gap:12px; margin-bottom:12px}
-    .control-group{display:grid; grid-template-columns:auto 1fr auto; gap:8px 10px; align-items:center}
-    input[type=range]{width:100%; height:36px}
-    input[type=range]::-webkit-slider-thumb{width:28px;height:28px;border-radius:50%;background:#8aa4ff;border:none;margin-top:-10px}
-    input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:6px;background:#31407a}
-    .badge{background:#0f1630; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:6px 10px; font-variant-numeric:tabular-nums; font-size:16px}
-    .svg-wrap{flex:1 1 auto; min-height:0}
-    svg{width:100%; height:100%; background:#0f1630; border-radius:12px; display:block; touch-action:none}
+    html,body{height:100%;margin:0}
+    body{height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .card{width:min(98vw,1200px);height:98vh;display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
+    h1{margin:0;font-size:clamp(18px,2.5vw,24px)} p{margin:0;color:var(--muted)}
+    .controls{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center}
+    input[type=range]{width:100%;touch-action:pan-y;height:28px}
+    .badge{background:#0f1630;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 8px;font-variant-numeric:tabular-nums}
+    .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+    .stage{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1 1 auto;min-height:0}
+    .view{position:relative;min-height:0;display:flex;flex-direction:column;gap:8px}
+    .pane{position:relative;flex:1 1 auto}
+    svg{width:100%;height:100%;min-height:260px;display:block;background:#0f1630;border-radius:12px}
+    /* Feste Bildschirmgröße für Labels (über HTML-Overlay, nicht SVG-Text) */
+    .overlayLabel{position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:none;font-size:32px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+    @media (max-width:700px){.stage{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Flachdach</h1>
-    <p>Stelle <strong>Hausbreite & Hauslänge </strong> und die Größe des <strong>Dachgeschosses mit Flachdach</strong> ein.</p>
-    <p>Das <strong>Dachgeschoss</strong> ist per Drag verschiebbar. Wenn das <strong>Dachgeschoss über 75% der Grundfläche</strong> einnimmt, erscheint die Beschriftung „Vollgeschoss“.</p>
+    <p>Ändere die Schieberegler um die Größe des Hauses und des Dachgeschosses zu verändern.</p>
+    <p>Schiebe das Dachgeschoss auf dem Haus umher.</p>
 
     <div class="controls">
-      <div class="control-group">
-        <label for="egWidth">Hausbreite (m)</label>
-        <input id="egWidth" type="range" min="5" max="30" value="12" step="0.1" />
-        <span id="egWidthOut" class="badge">12.0 m</span>
-      </div>
-      <div class="control-group">
-        <label for="egLength">Hauslänge (m)</label>
-        <input id="egLength" type="range" min="5" max="60" value="18" step="0.1" />
-        <span id="egLengthOut" class="badge">18.0 m</span>
-      </div>
-      <div class="control-group">
-        <label for="ogWidth">Dachgeschoss-Breite (m)</label>
-        <input id="ogWidth" type="range" min="1" max="12" value="8" step="0.1" />
-        <span id="ogWidthOut" class="badge">8.0 m</span>
-      </div>
-      <div class="control-group">
-        <label for="ogLength">Dachgeschoss-Länge (m)</label>
-        <input id="ogLength" type="range" min="1" max="18" value="12" step="0.1" />
-        <span id="ogLengthOut" class="badge">12.0 m</span>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap">
-        <span id="infoArea" class="badge">DG Fläche: 96.00 m² (44.4%) – EG Fläche: 216.00 m²</span>
-      </div>
+      <label for="egWidth">EG‑Breite (m)</label>
+      <input id="egWidth" type="range" min="5" max="30" value="12" step="0.1" />
+      <span id="egWidthOut" class="badge">12.0 m</span>
+
+      <label for="egLength">EG‑Länge (m)</label>
+      <input id="egLength" type="range" min="5" max="60" value="18" step="0.1" />
+      <span id="egLengthOut" class="badge">18.0 m</span>
+
+      <label for="ogWidth">DG-Breite (m)</label>
+      <input id="ogWidth" type="range" min="1" max="12" value="8" step="0.1" />
+      <span id="ogWidthOut" class="badge">8.0 m</span>
+
+      <label for="ogLength">DG-Länge (m)</label>
+      <input id="ogLength" type="range" min="1" max="18" value="12" step="0.1" />
+      <span id="ogLengthOut" class="badge">12.0 m</span>
     </div>
 
-    <div class="svg-wrap">
-      <svg id="svgPlan" viewBox="0 0 2400 1600" aria-label="Haus – Draufsicht" preserveAspectRatio="xMidYMid meet">
-        <rect id="eg" fill="var(--house)" stroke="var(--house-stroke)" stroke-width="3"/>
-        <rect id="og" fill="var(--roof)" stroke="var(--roof-stroke)" stroke-width="3" opacity="0.95" cursor="grab"/>
-        <text id="fullLabel" fill="#ffffff" font-size="32" text-anchor="middle" dominant-baseline="middle" style="display:none; pointer-events:none; font-weight:700;">Vollgeschoss</text>
-      </svg>
+    <div class="row">
+      <span id="infoArea" class="badge">DG: 96.00 m² (44.4%) – EG: 216.00 m²</span>
+    </div>
+
+    <div class="stage">
+      <div id="view2d" class="view" aria-label="Draufsicht">
+        <div class="pane" id="panePlan">
+          <svg id="svgPlan" viewBox="0 0 2400 1600" preserveAspectRatio="xMidYMid meet">
+            <rect id="eg" fill="var(--house)" stroke="var(--stroke)" stroke-width="3"/>
+            <rect id="og" fill="var(--roof)" stroke="var(--stroke)" stroke-width="3" opacity="1" cursor="grab"/>
+            <!-- SVG-Text bleibt, wird aber nicht genutzt für Anzeigegröße -->
+            <text id="fullLabel" x="0" y="0" style="display:none">Vollgeschoss</text>
+          </svg>
+          <div id="labelPlan" class="overlayLabel" style="display:none">Vollgeschoss</div>
+        </div>
+      </div>
+      <div id="viewSide" class="view" aria-label="Seitenansicht">
+        <div class="pane" id="paneSideLong">
+          <svg id="svgSideLong" viewBox="0 0 1600 1200" preserveAspectRatio="xMidYMid meet">
+            <line id="groundLong" x1="120" y1="1000" x2="1480" y2="1000" stroke="#6b78a8" stroke-width="3"/>
+            <rect id="sideEGLong" fill="var(--house)" stroke="var(--stroke)" stroke-width="3"/>
+            <rect id="sideOGLong" fill="var(--roof)" stroke="var(--stroke)" stroke-width="3" cursor="grab"/>
+            <text id="labelSideLong" style="display:none">Vollgeschoss</text>
+          </svg>
+          <div id="labelSideLongHtml" class="overlayLabel" style="display:none">Vollgeschoss</div>
+        </div>
+        <div class="pane" id="paneSide">
+          <svg id="svgSide" viewBox="0 0 1600 1200" preserveAspectRatio="xMidYMid meet">
+            <line id="ground" x1="120" y1="1000" x2="1480" y2="1000" stroke="#6b78a8" stroke-width="3"/>
+            <rect id="sideEG" fill="var(--house)" stroke="var(--stroke)" stroke-width="3"/>
+            <rect id="sideOG" fill="var(--roof)" stroke="var(--stroke)" stroke-width="3" cursor="grab"/>
+            <text id="labelSide" style="display:none">Vollgeschoss</text>
+          </svg>
+          <div id="labelSideHtml" class="overlayLabel" style="display:none">Vollgeschoss</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <script>
-    // === PWA: Service Worker Registrierung ===
-    if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').then(reg => {
-        // Wenn eine neue SW installiert ist und wartet → sofort aktivieren
-        function readyToActivate(sw) {
-          if (sw && sw.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              sw.postMessage({ type: 'SKIP_WAITING' });
-            }
-          }
-        }
-        if (reg.waiting) readyToActivate(reg.waiting);
-        reg.addEventListener('updatefound', () => {
-          const sw = reg.installing;
-          sw && sw.addEventListener('statechange', () => readyToActivate(sw));
-        });
+<script>
+var $=function(id){return document.getElementById(id)};
+var egWInp=$("egWidth"), egLInp=$("egLength"), ogWInp=$("ogWidth"), ogLInp=$("ogLength");
+var egWOut=$("egWidthOut"), egLOut=$("egLengthOut"), ogWOut=$("ogWidthOut"), ogLOut=$("ogLengthOut");
+var info=$("infoArea");
+var svg=$("svgPlan"), eg=$("eg"), og=$("og"), labelSvg=$("fullLabel");
+var svgSide=$("svgSide"), sideEG=$("sideEG"), sideOG=$("sideOG"), ground=$("ground"), labelSideSvg=$("labelSide");
+var svgSideLong=$("svgSideLong"), sideEGLong=$("sideEGLong"), sideOGLong=$("sideOGLong"), groundLong=$("groundLong"), labelSideLongSvg=$("labelSideLong");
+var labelPlan=$("labelPlan"), labelSideHtml=$("labelSideHtml"), labelSideLongHtml=$("labelSideLongHtml");
 
-        // Einmaliges Reload, wenn der neue SW übernimmt
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (refreshing) return;
-          refreshing = true;
-          window.location.reload();
-        });
-      }).catch(console.error);
-    });
-  }
+// Drag-Status
+var dragging=false, dX=0, dY=0; // Plan-Drag
+var dragSide={active:false, mode:null, dx:0}; // mode: 'len' (OG_X) oder 'wid' (OG_Y)
 
-    // === Maßstab: 10 px = 0.1 m → 1 px = 0.01 m ===
-    const SCALE = 0.01; // m pro Pixel
-    const $ = (id) => document.getElementById(id);
-    const egWInp = $("egWidth"), egWOut = $("egWidthOut");
-    const egLInp = $("egLength"), egLOut = $("egLengthOut");
-    const ogWInp = $("ogWidth"), ogWOut = $("ogWidthOut");
-    const ogLInp = $("ogLength"), ogLOut = $("ogLengthOut");
-    const infoArea = $("infoArea");
-    const svg = $("svgPlan"), eg = $("eg"), og = $("og"), fullLabel = $("fullLabel");
+var SCALE=0.01; var m2px=function(m){return m/SCALE};
+var H_EG=5.6, H_OG=2.8; // feste Geschosshöhen (m)
+var EG_W=+egWInp.value, EG_L=+egLInp.value, OG_W=+ogWInp.value, OG_L=+ogLInp.value;
+var OG_X=(EG_L-OG_L)/2, OG_Y=(EG_W-OG_W)/2;
 
-    let EG_W_m = +egWInp.value;
-    let EG_L_m = +egLInp.value;
-    let OG_W_m = +ogWInp.value;
-    let OG_L_m = +ogLInp.value;
-    let OG_X_m = (EG_L_m - OG_L_m)/2;
-    let OG_Y_m = (EG_W_m - OG_W_m)/2;
+function clampSizes(){ if(OG_W>EG_W){ OG_W=EG_W; ogWInp.value=OG_W; } if(OG_L>EG_L){ OG_L=EG_L; ogLInp.value=OG_L; } }
+function clampPosition(){ OG_X=Math.max(0,Math.min(OG_X,EG_L-OG_L)); OG_Y=Math.max(0,Math.min(OG_Y,EG_W-OG_W)); }
+function set(el,o){ for(var k in o){ el.setAttribute(k,o[k]); } }
 
-    let dragging = false; let dragDX=0, dragDY=0;
+function placeOverlay(labelEl, svgEl, cx, cy, show){
+  if(!labelEl) return;
+  var pt=svgEl.createSVGPoint(); pt.x=cx; pt.y=cy;
+  var screen=pt.matrixTransform(svgEl.getScreenCTM());
+  var rect=svgEl.getBoundingClientRect();
+  labelEl.style.left=(screen.x-rect.left)+"px";
+  labelEl.style.top=(screen.y-rect.top)+"px";
+  labelEl.style.display=show?"block":"none";
+}
 
-    function clampOG(){
-      OG_X_m = Math.max(0, Math.min(OG_X_m, EG_L_m - OG_L_m));
-      OG_Y_m = Math.max(0, Math.min(OG_Y_m, EG_W_m - OG_W_m));
-    }
-    function setAttrs(el, o){ for (const k in o) el.setAttribute(k, o[k]); }
-    function m2px(m){ return m / SCALE; }
+function update2D(){
+  EG_W=+egWInp.value; egWOut.textContent=EG_W.toFixed(1)+" m";
+  var prevL=EG_L; EG_L=+egLInp.value; egLOut.textContent=EG_L.toFixed(1)+" m"; if(OG_X+OG_L>=prevL-1e-3) OG_X+=EG_L-prevL;
+  OG_W=+ogWInp.value; ogWOut.textContent=OG_W.toFixed(1)+" m"; OG_L=+ogLInp.value; ogLOut.textContent=OG_L.toFixed(1)+" m";
+  ogWInp.max=EG_W; ogLInp.max=EG_L; clampSizes(); clampPosition();
 
-    function updateLimits(){
-      ogWInp.max = Math.max(1, EG_W_m).toString();
-      ogLInp.max = Math.max(1, EG_L_m).toString();
-      OG_W_m = Math.min(OG_W_m, EG_W_m);
-      OG_L_m = Math.min(OG_L_m, EG_L_m);
-    }
+  var EGw=m2px(EG_W), EGl=m2px(EG_L), OGw=m2px(OG_W), OGl=m2px(OG_L), OX=m2px(OG_X), OY=m2px(OG_Y);
+  set(eg,{x:200,y:120,width:EGl,height:EGw});
+  set(og,{x:200+OX,y:120+OY,width:OGl,height:OGw});
+  // SVG-Text nicht verwenden (Skalierungsproblem) – verstecken
+  labelSvg.style.display='none';
 
-    function update(){
-      EG_W_m = +egWInp.value; egWOut.textContent = `${EG_W_m.toFixed(1)} m`;
-      const prevL = EG_L_m; EG_L_m = +egLInp.value; egLOut.textContent = `${EG_L_m.toFixed(1)} m`;
-      const deltaL = EG_L_m - prevL; if(OG_X_m + OG_L_m >= prevL - 0.001) OG_X_m += deltaL;
-      OG_W_m = +ogWInp.value; ogWOut.textContent = `${OG_W_m.toFixed(1)} m`;
-      OG_L_m = +ogLInp.value; ogLOut.textContent = `${OG_L_m.toFixed(1)} m`;
+  var aEG=EG_W*EG_L, aOG=OG_W*OG_L, p=aEG?aOG/aEG*100:0; info.textContent='DG: '+aOG.toFixed(2)+' m² ('+p.toFixed(1)+'%) – EG: '+aEG.toFixed(2)+' m²';
+  var show=p>=75;
 
-      updateLimits(); clampOG();
+  var m=80; svg.setAttribute('viewBox',(200-m)+' '+(120-m)+' '+(EGl+m*2)+' '+(EGw+m*2));
 
-      const EG_W = m2px(EG_W_m), EG_L = m2px(EG_L_m);
-      const OG_W = m2px(OG_W_m), OG_L = m2px(OG_L_m);
-      const OG_X = m2px(OG_X_m), OG_Y = m2px(OG_Y_m);
+  // Plan-Label positionieren (Mitte des DG)
+  var cxPlan=200+OX+OGl/2, cyPlan=120+OY+OGw/2; placeOverlay(labelPlan, svg, cxPlan, cyPlan, show);
 
-      setAttrs(eg, { x:200, y:120, width:EG_L, height:EG_W });
-      setAttrs(og, { x:200+OG_X, y:120+OG_Y, width:OG_L, height:OG_W });
-      setAttrs(fullLabel, { x:200+OG_X+OG_L/2, y:120+OG_Y+OG_W/2 });
+  updateSide(show);
+  updateSideLong(show);
+}
 
-      const areaEG = EG_W_m * EG_L_m;
-      const areaOG = OG_W_m * OG_L_m;
-      const pct = areaEG > 0 ? (areaOG/areaEG)*100 : 0;
-      infoArea.textContent = `DG-Fläche: ${areaOG.toFixed(2)} m² (${pct.toFixed(1)}%) – EG-Fläche: ${areaEG.toFixed(2)} m²`;
-      fullLabel.style.display = (pct >= 75) ? 'inline' : 'none';
+function svgPt(e){var pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse());}
+function sidePtLen(e){var pt=svgSide.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY; return pt.matrixTransform(svgSide.getScreenCTM().inverse());}
+function sidePtWid(e){var pt=svgSideLong.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY; return pt.matrixTransform(svgSideLong.getScreenCTM().inverse());}
+og.addEventListener('pointerdown',function(e){dragging=true;og.setPointerCapture(e.pointerId);var p=svgPt(e);dX=(p.x-+og.getAttribute('x'))*SCALE; dY=(p.y-+og.getAttribute('y'))*SCALE; og.style.cursor='grabbing';});
+og.addEventListener('pointermove',function(e){if(!dragging) return; var p=svgPt(e); OG_X=(p.x-200)*SCALE-dX; OG_Y=(p.y-120)*SCALE-dY; clampPosition(); requestAnimationFrame(update2D);});
+og.addEventListener('pointerup',function(e){dragging=false; og.releasePointerCapture(e.pointerId); og.style.cursor='grab';});
+[egWInp,egLInp,ogWInp,ogLInp].forEach(function(i){ i.addEventListener('input',update2D); });
+window.addEventListener('resize', update2D);
 
-      const margin = 100;
-      svg.setAttribute('viewBox', `${200-margin} ${120-margin} ${EG_L+margin*2} ${EG_W+margin*2}`);
-    }
+// === Drag in Seitenansichten ===
+// Länge × Höhe (OG_X verschieben)
+sideOG.addEventListener('pointerdown',function(e){
+  var p=sidePtLen(e); var currentX=+sideOG.getAttribute('x');
+  dragSide.active=true; dragSide.mode='len'; dragSide.dx=p.x-currentX; sideOG.setPointerCapture(e.pointerId); sideOG.style.cursor='grabbing';
+});
+sideOG.addEventListener('pointermove',function(e){
+  if(!dragSide.active || dragSide.mode!=='len') return; var p=sidePtLen(e);
+  var newX=p.x-dragSide.dx; // in SVG-Einheiten (px)
+  var pad=120; var meters=(newX-pad)*SCALE; // zurück in Meter
+  OG_X=meters; clampPosition(); requestAnimationFrame(update2D);
+});
+sideOG.addEventListener('pointerup',function(e){ if(!dragSide.active) return; dragSide.active=false; sideOG.releasePointerCapture(e.pointerId); sideOG.style.cursor='grab'; });
 
-    function svgPoint(evt){
-      const pt = svg.createSVGPoint();
-      pt.x = evt.clientX; pt.y = evt.clientY;
-      return pt.matrixTransform(svg.getScreenCTM().inverse());
-    }
+// Breite × Höhe (OG_Y verschieben)
+sideOGLong.addEventListener('pointerdown',function(e){
+  var p=sidePtWid(e); var currentX=+sideOGLong.getAttribute('x');
+  dragSide.active=true; dragSide.mode='wid'; dragSide.dx=p.x-currentX; sideOGLong.setPointerCapture(e.pointerId); sideOGLong.style.cursor='grabbing';
+});
+sideOGLong.addEventListener('pointermove',function(e){
+  if(!dragSide.active || dragSide.mode!=='wid') return; var p=sidePtWid(e);
+  var newX=p.x-dragSide.dx; var pad=120; var meters=(newX-pad)*SCALE; OG_Y=meters; clampPosition(); requestAnimationFrame(update2D);
+});
+sideOGLong.addEventListener('pointerup',function(e){ if(!dragSide.active) return; dragSide.active=false; sideOGLong.releasePointerCapture(e.pointerId); sideOGLong.style.cursor='grab'; });
 
-    og.addEventListener('pointerdown', (e)=>{
-      dragging=true; og.style.cursor='grabbing'; og.setPointerCapture(e.pointerId);
-      const p=svgPoint(e); const ogX=+og.getAttribute('x'); const ogY=+og.getAttribute('y');
-      dragDX=(p.x-ogX)*SCALE; dragDY=(p.y-ogY)*SCALE;
-    });
-    og.addEventListener('pointermove', (e)=>{
-      if(!dragging) return; const p=svgPoint(e);
-      OG_X_m=(p.x-200)*SCALE-dragDX; OG_Y_m=(p.y-120)*SCALE-dragDY;
-      clampOG(); requestAnimationFrame(update);
-    });
-    og.addEventListener('pointerup', (e)=>{ dragging=false; og.style.cursor='grab'; og.releasePointerCapture(e.pointerId); });
+update2D();
 
-    [egWInp,egLInp,ogWInp,ogLInp].forEach(inp=>inp.addEventListener('input',()=>{clampOG(); update();}));
-    update();
-  </script>
+// Seitenansicht Länge × Höhe
+function updateSide(show){
+  var Lpx=m2px(EG_L);
+  var HEGpx=m2px(H_EG), HOGpx=m2px(H_OG);
+  var pad=120, baseY=1000;
+  var egX=pad, egY=baseY-HEGpx; var egWpx=Lpx, egHpx=HEGpx;
+  set(sideEG,{x:egX,y:egY,width:egWpx,height:egHpx});
+  var dgX=pad+m2px(OG_X); var dgY=egY-HOGpx; var dgWpx=m2px(OG_L), dgHpx=HOGpx;
+  set(sideOG,{x:dgX,y:dgY,width:dgWpx,height:dgHpx});
+  // SVG-Text verstecken, HTML-Overlay setzen
+  labelSideSvg.style.display='none';
+  var cx=dgX+dgWpx/2, cy=dgY+dgHpx/2; placeOverlay(labelSideHtml, svgSide, cx, cy, show);
+  var vbX=0, vbY=0, vbW=Math.max(pad*2+Lpx, 800), vbH=1100;
+  svgSide.setAttribute('viewBox', vbX+' '+vbY+' '+vbW+' '+vbH);
+  set(ground,{x1:pad-20,y1:baseY,x2:vbW-(pad-20),y2:baseY});
+}
+
+// Seitenansicht Breite × Höhe
+function updateSideLong(show){
+  var Wpx=m2px(EG_W);
+  var HEGpx=m2px(H_EG), HOGpx=m2px(H_OG);
+  var pad=120, baseY=1000;
+  var egX=pad, egY=baseY-HEGpx; var egWpx=Wpx, egHpx=HEGpx;
+  set(sideEGLong,{x:egX,y:egY,width:egWpx,height:egHpx});
+  var dgX=pad+m2px(OG_Y); var dgY=egY-HOGpx; var dgWpx=m2px(OG_W), dgHpx=HOGpx;
+  set(sideOGLong,{x:dgX,y:dgY,width:dgWpx,height:dgHpx});
+  labelSideLongSvg.style.display='none';
+  var cx=dgX+dgWpx/2, cy=dgY+dgHpx/2; placeOverlay(labelSideLongHtml, svgSideLong, cx, cy, show);
+  var vbX=0, vbY=0, vbW=Math.max(pad*2+Wpx, 800), vbH=1100;
+  svgSideLong.setAttribute('viewBox', vbX+' '+vbY+' '+vbW+' '+vbH);
+  set(groundLong,{x1:pad-20,y1:baseY,x2:vbW-(pad-20),y2:baseY});
+}
+</script>
 </body>
 </html>
-
-
-
-
-
-
-
-
