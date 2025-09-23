@@ -1,5 +1,7 @@
 // sw.js
-const VERSION = "flachdach-v3-" + new Date().toISOString().slice(0,10);
+// PWA Service Worker für "Flachdach – Draufsicht & Seitenansicht"
+// Version wird täglich geändert, damit alte Caches zuverlässig bereinigt werden
+const VERSION = "flachdach-v4-" + new Date().toISOString().slice(0,10);
 const CORE_CACHE = `core-${VERSION}`;
 const STATIC_CACHE = `static-${VERSION}`;
 
@@ -12,7 +14,9 @@ const CORE_ASSETS = [
 ];
 const STATIC_ASSETS = [
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  // Neu: maskable Icon aus Manifest cachen
+  "./icons/icon-maskable.png"
 ];
 
 // Sofort neue SW aktivieren, wenn möglich
@@ -35,6 +39,10 @@ self.addEventListener("activate", (event) => {
         .filter(k => ![CORE_CACHE, STATIC_CACHE].includes(k))
         .map(k => caches.delete(k))
     );
+    // Optional: Navigation Preload (beschleunigt First Load, wenn Browser unterstützt)
+    if (self.registration.navigationPreload) {
+      try { await self.registration.navigationPreload.enable(); } catch(_) {}
+    }
   })());
   self.clients.claim();
 });
@@ -77,21 +85,31 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Nur GET-Anfragen behandeln
+  if (request.method !== 'GET') return;
+
   // Nur eigene Origin cachen
   const sameOrigin = url.origin === self.location.origin;
 
   // Navigationsanfragen / index.html: Network-First
   const isNavigate =
     request.mode === "navigate" ||
-    (request.destination === "document") ||
+    request.destination === "document" ||
     url.pathname.endsWith("/index.html");
 
+  // Navigation Preload bevorzugen, falls aktiv
   if (sameOrigin && isNavigate) {
-    event.respondWith(networkFirst(request, CORE_CACHE));
+    event.respondWith((async () => {
+      try {
+        const preload = await event.preloadResponse;
+        if (preload) return preload;
+      } catch (_) {}
+      return networkFirst(request, CORE_CACHE);
+    })());
     return;
   }
 
-  // Statische Assets: Manifest, Icons, Images, Styles
+  // Statische Assets: Manifest, Icons, Images, Styles, Fonts, Skripte
   if (sameOrigin && (
       request.destination === "manifest" ||
       request.destination === "image" ||
@@ -103,8 +121,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Default: einfach weiterleiten (kein spezielles Caching)
-  // -> Du kannst hier bei Bedarf weitere Strategien einbauen
+  // Default: Netzwerk (kein spezielles Caching)
 });
 
 // Sofortige Übernahme, wenn die Seite "SKIP_WAITING" sendet
