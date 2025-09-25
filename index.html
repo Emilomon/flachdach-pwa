@@ -2,8 +2,22 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- iOS braucht viewport-fit=cover für volle Displaynutzung (Dynamic Island/Notch) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Flachdach – 2D (feste ViewBox)</title>
+
+  <!-- PWA (allgemein) -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="application-name" content="Flachdach" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <!-- PWA (Apple / Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Flachdach" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
+
   <style>
     :root{--bg:#0b1020;--panel:#131a33;--ink:#e8ecff;--muted:#a8b3d9;--house:#1b2b57;--roof:#253a7a;--stroke:#8aa4ff}
     *{box-sizing:border-box}
@@ -23,9 +37,9 @@
     @media (max-width:900px){.stage{grid-template-columns:1fr}}
     /* SVG-Titel in den ViewBoxen */
     .svgTitle{font:600 64px system-ui,Segoe UI,Roboto,Arial; fill: #fff; text-anchor:start; dominant-baseline:hanging}
-  
   </style>
 </head>
+
 <body>
   <div class="card">
     <h1>Flachdach</h1>
@@ -271,6 +285,7 @@ updateAll();
 </script>
 </body>
 </html>
+
 
 
 
